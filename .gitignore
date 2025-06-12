@@ -6,3 +6,7 @@ logs/
 airflow.db
 .docker/
 postgres_data/
+
+# Environment variables
+.db.env
+.prod.env

@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  airflow-webserver:
+    image: apache/airflow:2.11.0-python3.12
+    depends_on:
+      - airflow-scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./configs:/opt/airflow/configs
+      - ./logs:/opt/airflow/logs
+    ports:
+      - "8080:8080"
+    env_file:
+      - .prod.env
+    networks:
+      - airflow_net
+    command: webserver
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.11.0-python3.12
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./configs:/opt/airflow/configs
+      - ./logs:/opt/airflow/logs
+    env_file:
+      - .prod.env
+    networks:
+      - airflow_net
+    command: scheduler
+    restart: always
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--hostname", "$(hostname)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  airflow_net:
+    external: true 

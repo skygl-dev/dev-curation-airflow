@@ -9,7 +9,7 @@ services:
       - ./configs:/opt/airflow/configs
       - ./logs:/opt/airflow/logs
     env_file:
-      - .prod.env
+      - .worker.env
     networks:
       - airflow_net
     command: celery worker

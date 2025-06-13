@@ -10,3 +10,4 @@ postgres_data/
 # Environment variables
 .db.env
 .prod.env
+.worker.env

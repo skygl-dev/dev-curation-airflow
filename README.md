@@ -52,7 +52,7 @@ docker-compose -f docker-compose.dev.yml down
 
 1. Docker 네트워크 생성
 ```shell
-docker network create airflow_net
+sudo docker network create airflow_net
 ```
 
 2. 환경 변수 파일 설정
@@ -71,22 +71,24 @@ docker network create airflow_net
 
 1. 데이터베이스 서버 실행
 ```shell
-docker-compose -f docker-compose.db.yml up -d
+sudo docker-compose -f docker-compose.db.yml up -d
 ```
 
 2. Airflow 웹서버와 스케줄러 실행
 ```shell
-docker-compose -f docker-compose.airflow-main.yml up -d
+sudo docker-compose -f docker-compose.airflow-main.yml up -d
 ```
 
 3. 데이터베이스 초기화 (최초 1회)
 ```shell
-docker exec -it airflow-webserver airflow db migrate
+sudo docker exec -it dev-curation-airflow_airflow-webserver_1 airflow db migrate
 ```
+
+sudo docker exec -it dev-curation-airflow_airflow-webserver_1 	airflow celery inspect ping
 
 4. 관리자 계정 생성 (최초 1회)
 ```shell
-docker exec -it airflow-webserver airflow users create \
+sudo docker exec -it dev-curation-airflow_airflow-webserver_1 airflow users create \
     --role Admin \
     --username admin \
     --email admin@example.com \
@@ -99,7 +101,7 @@ docker exec -it airflow-webserver airflow users create \
 
 1. Airflow 워커 실행
 ```shell
-docker-compose -f docker-compose.airflow-worker.yml up -d
+sudo docker-compose -f docker-compose.airflow-worker.yml up -d
 ```
 
 ### 주의사항

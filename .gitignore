@@ -6,6 +6,7 @@ logs/
 airflow.db
 .docker/
 postgres_data/
+redis_data/
 
 # Environment variables
 .db.env

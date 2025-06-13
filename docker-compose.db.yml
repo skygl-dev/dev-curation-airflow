@@ -22,11 +22,12 @@ services:
     image: redis:alpine
     env_file:
       - .db.env
-    command: redis-server --requirepass $${REDIS_PASSWORD}
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
       - "0.0.0.0:6379:6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - airflow_net
     restart: always

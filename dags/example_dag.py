@@ -2,8 +2,10 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 
+
 def say_hello():
     print("Hello Airflow!")
+
 
 with DAG(
     dag_id='example_hello_dag',

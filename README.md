@@ -1,5 +1,8 @@
 # dev-curation-airflow
 
+![CI](https://github.com/skygl-dev/dev-curation-airflow/actions/workflows/pipeline.yml/badge.svg)
+
+
 Python Version: 3.12.11
 
 ## 개발 환경 설정

@@ -1,0 +1,105 @@
+name: Airflow CI / CD Pipeline
+
+on:
+  push:
+    branches: 
+      - main
+
+jobs:
+  ci:
+    name: Run Lint and Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run flake8 Lint
+        run: flake8 .
+
+      - name: Run Unit Tests
+        run: |
+          PYTHONPATH=plugins python -m unittest discover -s tests -p "test_*.py"
+  cd:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      - name: Stop Scheduler on Webserver/Scheduler (Server A)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_A_USER }}@${{ secrets.SERVER_A_HOST }} << 'EOF'
+            cd ~/dev-curation-airflow/
+            echo "Stopping Airflow Scheduler..."
+            sudo docker-compose -f docker-compose.airflow-main.yml stop airflow-scheduler
+          EOF
+      - name: Deploy to Worker (Server B)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_B_USER }}@${{ secrets.SERVER_B_HOST }} << 'EOF'
+            cd ~/dev-curation-airflow/
+            echo "Stopping Airflow Worker..."
+            sudo docker-compose -f docker-compose.airflow-worker.yml stop airflow-worker
+            echo "Updating Worker and Restarting..."
+            git checkout main
+            git pull origin main
+            sudo docker-compose -f docker-compose.airflow-worker.yml up -d --build
+          EOF
+      - name: Deploy to Webserver/Scheduler (Server A)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_A_USER }}@${{ secrets.SERVER_A_HOST }} << 'EOF'
+            cd ~/dev-curation-airflow/
+            echo "Updating Webserver/Scheduler..."
+            git checkout main
+            git pull origin main
+            sudo docker-compose -f docker-compose.airflow-main.yml down
+            sudo docker-compose -f docker-compose.airflow-main.yml up -d --build
+          EOF
+  discord_notify:
+    name: Discord Notification
+    runs-on: ubuntu-latest
+    needs: [ci, cd]
+    if: always()  # 성공/실패 모두 알림
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          BUILD_TIME=$(TZ="Asia/Seoul" date +"%Y-%m-%d %H:%M:%S")
+          if [[ "${{ needs.ci.result }}" == "failure" || "${{ needs.cd.result }}" == "failure" ]]; then
+            STATUS="❌ Airflow CI/CD 실패"
+            COLOR=15158332
+          else
+            STATUS="✅ Airflow CI/CD 성공"
+            COLOR=3066993
+          fi
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${STATUS}\",
+                \"description\": \"**Repository:** ${{ github.repository }}\\n**Branch:** ${{ github.ref_name }}\\n**Actor:** ${{ github.actor }}\\n**Time:** ${BUILD_TIME} (KST)\",
+                \"url\": \"${RUN_URL}\",
+                \"color\": ${COLOR},
+                \"fields\": [
+                  {\"name\": \"자세히 보기\", \"value\": \"[Action 결과 보기](${RUN_URL})\"}
+                ]
+              }]
+            }" \
+            $DISCORD_WEBHOOK_URL

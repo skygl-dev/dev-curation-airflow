@@ -1,6 +1,6 @@
 # dev-curation-airflow
 
-![CI](https://github.com/skygl-dev/dev-curation-airflow/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/skygl-dev/dev-curation-airflow/actions/workflows/pipeline.yml/badge.svg)
 
 
 Python Version: 3.12.11

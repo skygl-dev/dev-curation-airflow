@@ -5,10 +5,6 @@ on:
     branches: 
       - main
       - feat/github_actions
-  pull_request:
-    branches: 
-      - main
-      - feat/github_actions
 
 jobs:
   ci:
@@ -73,3 +69,38 @@ jobs:
             sudo docker-compose -f docker-compose.airflow-main.yml down
             sudo docker-compose -f docker-compose.airflow-main.yml up -d --build
           EOF
+  discord_notify:
+    name: Discord Notification
+    runs-on: ubuntu-latest
+    needs: [ci, cd]
+    if: always()  # 성공/실패 모두 알림
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          BUILD_TIME=$(TZ="Asia/Seoul" date +"%Y-%m-%d %H:%M:%S")
+          if [[ "${{ needs.ci.result }}" == "failure" || "${{ needs.cd.result }}" == "failure" ]]; then
+            STATUS="❌ Airflow CI/CD 실패"
+            COLOR=15158332
+          else
+            STATUS="✅ Airflow CI/CD 성공"
+            COLOR=3066993
+          fi
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${STATUS}\",
+                \"description\": \"**Repository:** ${{ github.repository }}\\n**Branch:** ${{ github.ref_name }}\\n**Actor:** ${{ github.actor }}\\n**Time:** ${BUILD_TIME} (KST)\",
+                \"url\": \"${RUN_URL}\",
+                \"color\": ${COLOR},
+                \"fields\": [
+                  {\"name\": \"자세히 보기\", \"value\": \"[Action 결과 보기](${RUN_URL})\"}
+                ]
+              }]
+            }" \
+            $DISCORD_WEBHOOK_URL
